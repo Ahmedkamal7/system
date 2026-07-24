@@ -13,8 +13,10 @@ interface SidebarProps {
 
 export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  
+  // تعديل هنا: إجبار القائمة على الظهور إذا لم يقرأ النظام الدور
   const filteredNavItems = navItems.filter(item => 
-    userRole ? item.roles.includes(userRole) : false
+    !userRole || userRole === "undefined" ? true : item.roles.includes(userRole)
   );
 
   return (
