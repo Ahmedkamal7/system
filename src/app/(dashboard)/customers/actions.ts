@@ -41,7 +41,7 @@ export async function upsertCustomer(formData: CustomerFormData) {
       .from("customers")
       .insert(customerData);
       
-    if (error) return { error: "حدث خطأ أثناء إضافة العميل" };
+            if (error) return { error: error.message };
   }
 
   revalidatePath("/customers");
