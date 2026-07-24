@@ -33,13 +33,13 @@ export async function upsertSupplier(formData: SupplierFormData) {
       .update(supplierData)
       .eq("id", formData.id);
       
-    if (error) return { error: "حدث خطأ أثناء تحديث بيانات المورد" };
+    if (error) return { error: error.message };
   } else {
     const { error } = await supabase
       .from("suppliers")
       .insert(supplierData);
       
-    if (error) return { error: "حدث خطأ أثناء إضافة المورد" };
+    if (error) return { error: error.message };
   }
 
   revalidatePath("/suppliers");
