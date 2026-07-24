@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SupplierFormData, upsertSupplier } from "./actions";
 import Modal from "@/components/ui/Modal";
 
@@ -14,11 +14,17 @@ export default function SupplierForm({ isOpen, onClose, supplier }: SupplierForm
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const initialData: SupplierFormData = supplier || {
+  const [formData, setFormData] = useState<SupplierFormData>({
     name: "", phone: "", address: "", opening_balance: 0, notes: ""
-  };
+  });
 
-  const [formData, setFormData] = useState<SupplierFormData>(initialData);
+  // تحديث الحقول بالبيانات عند فتح النافذة للتعديل
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(supplier || { name: "", phone: "", address: "", opening_balance: 0, notes: "" });
+      setError(null);
+    }
+  }, [isOpen, supplier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
