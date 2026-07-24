@@ -49,8 +49,8 @@ export default function DashboardPage() {
       .from("inventory_levels")
       .select("quantity, products ( name, purchase_price, min_stock )");
     
-    const inventoryValue = inventory?.reduce((s, item) => s + (Number(item.quantity) * Number(item.products?.purchase_price || 0)), 0) || 0;
-    const lowStockItems = inventory?.filter(item => Number(item.quantity) <= Number(item.products?.min_stock)) || [];
+    const inventoryValue = inventory?.reduce((s, item) => s + (Number(item.quantity) * Number(item.products?.[0]?.purchase_price || 0)), 0) || 0;
+    const lowStockItems = inventory?.filter(item => Number(item.quantity) <= Number(item.products?.[0]?.min_stock)) || [];
 
     const { data: recentSales } = await supabase
       .from("sales")
