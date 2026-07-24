@@ -18,11 +18,12 @@ export default function SupplierForm({ isOpen, onClose, supplier }: SupplierForm
     name: "", phone: "", address: "", opening_balance: 0, notes: ""
   });
 
-  // تحديث الحقول بالبيانات عند فتح النافذة للتعديل
+  // تحديث الحقول بالبيانات الجديدة في كل مرة تُفتح فيها النافذة
   useEffect(() => {
     if (isOpen) {
       setFormData(supplier || { name: "", phone: "", address: "", opening_balance: 0, notes: "" });
       setError(null);
+      setLoading(false);
     }
   }, [isOpen, supplier]);
 
