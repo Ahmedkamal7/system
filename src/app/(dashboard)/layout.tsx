@@ -20,6 +20,7 @@ export default async function DashboardLayout({
     .eq("id", session.user.id)
     .single();
 
+  // تعديل هنا: استخدام [0]?. للوصول للعنصر الأول من المصفوفة
   const userRole = profile?.roles?.[0]?.name || null;
   const username = profile?.username || "مستخدم";
 
