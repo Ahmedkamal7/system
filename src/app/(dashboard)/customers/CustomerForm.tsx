@@ -18,11 +18,12 @@ export default function CustomerForm({ isOpen, onClose, customer }: CustomerForm
     name: "", phone: "", address: "", credit_limit: 0, opening_balance: 0, notes: ""
   });
 
-  // تحديث الحقول بالبيانات عند فتح النافذة للتعديل
+  // تحديث الحقول بالبيانات الجديدة في كل مرة تُفتح فيها النافذة أو يتغير العميل
   useEffect(() => {
     if (isOpen) {
       setFormData(customer || { name: "", phone: "", address: "", credit_limit: 0, opening_balance: 0, notes: "" });
       setError(null);
+      setLoading(false);
     }
   }, [isOpen, customer]);
 
