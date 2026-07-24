@@ -20,14 +20,15 @@ export default async function DashboardLayout({
     .eq("id", session.user.id)
     .single();
 
-  // تعديل هنا: استخدام [0]?. للوصول للعنصر الأول من المصفوفة
-  const userRole = profile?.roles?.[0]?.name || null;
+  // تعديل هنا: معالجة حالة البيانات سواء كانت Object أو Array
+  const rolesData: any = profile?.roles;
+  const userRole = Array.isArray(rolesData) ? rolesData[0]?.name : rolesData?.name;
   const username = profile?.username || "مستخدم";
 
   return (
     <DashboardShell 
       username={username} 
-      userRole={userRole}
+      userRole={userRole || null}
     >
       {children}
     </DashboardShell>
