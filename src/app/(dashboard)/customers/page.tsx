@@ -161,9 +161,9 @@ export default function CustomersPage() {
         )}
       </div>
 
-      <CustomerForm 
+           <CustomerForm 
         isOpen={isFormOpen} 
-        onClose={() => setIsFormOpen(false)} 
+        onClose={() => { setIsFormOpen(false); fetchCustomers(); }} 
         customer={editingCustomer}
       />
     </div>
