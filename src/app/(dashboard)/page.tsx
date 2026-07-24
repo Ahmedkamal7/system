@@ -2,147 +2,120 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Search, Edit2, Trash2, Truck, Phone, Wallet } from "lucide-react";
-import SupplierForm, { SupplierFormData } from "./SupplierForm";
-import { softDeleteSupplier } from "./actions";
+import { TrendingUp, Wallet, Banknote, Users, Truck, Package, AlertTriangle, Activity, ShoppingBag, UserCheck } from "lucide-react";
 
-export default function SuppliersPage() {
+export default function DashboardPage() {
   const supabase = createClient();
-  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState<SupplierFormData | null>(null);
+  const [stats, setStats] = useState<any>({});
 
-  const fetchSuppliers = async () => {
+  const fetchDashboardData = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("suppliers")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-    if (data) setSuppliers(data);
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+
+    const { data: todaySales } = await supabase.from("sales").select("total_amount").gte("created_at", startOfDay);
+    const totalTodaySales = todaySales?.reduce((s, sale) => s + Number(sale.total_amount), 0) || 0;
+
+    const { data: todayCollections } = await supabase.from("collections").select("amount").gte("created_at", startOfDay);
+    const totalTodayCollections = todayCollections?.reduce((s, c) => s + Number(c.amount), 0) || 0;
+
+    const { data: cashBoxes } = await supabase.from("cash_boxes").select("balance");
+    const totalCash = cashBoxes?.reduce((s, c) => s + Number(c.balance), 0) || 0;
+
+    const { data: allCollections } = await supabase.from("collections").select("amount, status").eq("status", "COLLECTED");
+    const collectorBalances = allCollections?.reduce((s, c) => s + Number(c.amount), 0) || 0;
+
+    const { data: customers } = await supabase.from("customers").select("opening_balance").is("deleted_at", null);
+    const customerBalances = customers?.reduce((s, c) => s + Number(c.opening_balance), 0) || 0;
+
+    const { data: suppliers } = await supabase.from("suppliers").select("opening_balance").is("deleted_at", null);
+    const supplierBalances = suppliers?.reduce((s, sup) => s + Number(sup.opening_balance), 0) || 0;
+
+    const { data: inventory } = await supabase.from("inventory_levels").select("quantity, products ( name, purchase_price, min_stock )");
+    const inventoryValue = inventory?.reduce((s, item) => s + (Number(item.quantity) * Number(item.products?.[0]?.purchase_price || 0)), 0) || 0;
+    const lowStockItems = inventory?.filter(item => Number(item.quantity) <= Number(item.products?.[0]?.min_stock)) || [];
+
+    const { data: recentSales } = await supabase.from("sales").select("id, total_amount, created_at, customers ( name )").order("created_at", { ascending: false }).limit(5);
+
+    setStats({ totalTodaySales, totalTodayCollections, totalCash, collectorBalances, customerBalances, supplierBalances, inventoryValue, lowStockCount: lowStockItems.length, recentSales });
     setLoading(false);
   };
 
-  useEffect(() => { fetchSuppliers(); }, []);
+  useEffect(() => {
+    fetchDashboardData();
+    const channel = supabase.channel("dashboard-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => fetchDashboardData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "collections" }, () => fetchDashboardData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_transactions" }, () => fetchDashboardData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_levels" }, () => fetchDashboardData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("هل أنت متأكد من حذف هذا المورد؟")) {
-      await softDeleteSupplier(id);
-      fetchSuppliers();
-    }
-  };
-
-  const handleEdit = (supplier: any) => {
-    setEditingSupplier({
-      id: supplier.id,
-      name: supplier.name,
-      phone: supplier.phone || "",
-      address: supplier.address || "",
-      opening_balance: supplier.opening_balance || 0,
-      notes: supplier.notes || "",
-    });
-    setIsFormOpen(true);
-  };
-
-  const handleAdd = () => {
-    setEditingSupplier(null);
-    setIsFormOpen(true);
-  };
-
-  // دالة إغلاق النافذة التي تقوم بتحديث الجدول فوراً
-  const handleClose = () => {
-    setIsFormOpen(false);
-    fetchSuppliers(); 
-  };
-
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.phone?.includes(searchQuery)
+  const StatCard = ({ title, value, icon: Icon, color, subtitle, isCurrency = true }: any) => (
+    <div className="bg-card p-6 rounded-2xl shadow-soft border border-border hover:shadow-card transition-all duration-300 hover:-translate-y-1">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shadow-soft`}><Icon className="w-6 h-6 text-white" /></div>
+      </div>
+      <h3 className="text-text-secondary text-sm mb-1">{title}</h3>
+      <p className="text-2xl font-bold text-text-primary">{loading ? "..." : value.toLocaleString()} {isCurrency ? "ر.س" : ""}</p>
+      {subtitle && <p className="text-xs text-text-secondary mt-1">{subtitle}</p>}
+    </div>
   );
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">الموردون</h1>
-          <p className="text-text-secondary mt-1">إدارة بيانات الموردين والأرصدة المستحقة</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">لوحة التحكم التنفيذية</h1>
+          <p className="text-text-secondary mt-1 flex items-center gap-1">
+            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span></span>
+            متصل مباشر (Realtime)
+          </p>
         </div>
-        <button onClick={handleAdd} className="flex items-center justify-center gap-2 bg-primary-blue text-white px-5 py-2.5 rounded-xl hover:bg-blue-600 transition-colors font-medium shadow-soft">
-          <Plus className="w-5 h-5" /> إضافة مورد
-        </button>
       </div>
-
-      <div className="relative">
-        <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-        <input type="text" placeholder="ابحث بالاسم أو رقم الهاتف..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-card border border-border rounded-xl py-3 pr-12 pl-4 outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="مبيعات اليوم" value={stats.totalTodaySales || 0} icon={TrendingUp} color="bg-primary-blue" />
+        <StatCard title="تحصيلات اليوم" value={stats.totalTodayCollections || 0} icon={Banknote} color="bg-success" />
+        <StatCard title="رصيد الصندوق" value={stats.totalCash || 0} icon={Wallet} color="bg-info" />
+        <StatCard title="عهدة المحصلين" value={stats.collectorBalances || 0} icon={UserCheck} color="bg-warning" />
       </div>
-
-      <div className="bg-card rounded-2xl shadow-soft border border-border overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-text-secondary">جاري تحميل البيانات...</div>
-        ) : filteredSuppliers.length === 0 ? (
-          <div className="p-8 text-center text-text-secondary flex flex-col items-center gap-2">
-            <Truck className="w-12 h-12 text-border" /> لا يوجد موردون لعرضهم
-          </div>
-        ) : (
-          <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-background border-b border-border">
-                  <tr>
-                    <th className="text-right py-4 px-6 text-sm font-semibold text-text-secondary">اسم المورد</th>
-                    <th className="text-right py-4 px-6 text-sm font-semibold text-text-secondary">الهاتف</th>
-                    <th className="text-right py-4 px-6 text-sm font-semibold text-text-secondary">الرصيد الافتتاحي</th>
-                    <th className="text-right py-4 px-6 text-sm font-semibold text-text-secondary">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredSuppliers.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-background transition-colors">
-                      <td className="py-4 px-6 font-medium text-text-primary">{supplier.name}</td>
-                      <td className="py-4 px-6 text-text-secondary">{supplier.phone || "—"}</td>
-                      <td className="py-4 px-6 text-text-secondary">{supplier.opening_balance?.toLocaleString() || "0"}</td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleEdit(supplier)} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(supplier.id)} className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="md:hidden divide-y divide-border">
-              {filteredSuppliers.map((supplier) => (
-                <div key={supplier.id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="أرصدة العملاء" value={stats.customerBalances || 0} icon={Users} color="bg-purple-500" subtitle="إجمالي المديونيات" />
+        <StatCard title="أرصدة الموردين" value={stats.supplierBalances || 0} icon={Truck} color="bg-pink-500" subtitle="إجمالي المستحقات" />
+        <StatCard title="قيمة المخزون" value={stats.inventoryValue || 0} icon={Package} color="bg-indigo-500" subtitle="بسعر التكلفة" />
+        <StatCard title="تنبيهات المخزون" value={stats.lowStockCount || 0} icon={AlertTriangle} color="bg-danger" isCurrency={false} subtitle="منتجات وصلت للحد الأدنى" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-card p-6 rounded-2xl shadow-soft border border-border">
+          <h3 className="font-bold text-text-primary mb-4 flex items-center gap-2"><Activity className="w-5 h-5 text-primary-blue" /> أحدث المعاملات (المبيعات)</h3>
+          <div className="space-y-3">
+            {loading ? <p className="text-text-secondary text-sm text-center py-4">جاري تحميل المعاملات...</p> : stats.recentSales?.length === 0 ? <p className="text-text-secondary text-sm text-center py-4">لا توجد معاملات حديثة</p> : (
+              stats.recentSales?.map((sale: any) => (
+                <div key={sale.id} className="flex items-center justify-between p-3 bg-background rounded-xl border border-border hover:border-primary-blue/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary-blue/10 rounded-full flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-primary-blue" /></div>
                     <div>
-                      <h3 className="font-bold text-text-primary">{supplier.name}</h3>
-                      {supplier.phone && <p className="text-sm text-text-secondary flex items-center gap-1 mt-1"><Phone className="w-3 h-3" /> {supplier.phone}</p>}
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEdit(supplier)} className="p-2 text-info hover:bg-info/10 rounded-lg"><Edit2 className="w-4 h-4" /></button>
-                      <button onClick={() => handleDelete(supplier.id)} className="p-2 text-danger hover:bg-danger/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      <p className="font-semibold text-text-primary text-sm">{sale.customers?.[0]?.name || "عميل نقدي"}</p>
+                      <p className="text-xs text-text-secondary">{new Date(sale.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
-                  <div className="flex gap-4 text-xs">
-                    <div className="flex items-center gap-1 text-text-secondary">
-                      <Wallet className="w-3 h-3" /> الرصيد: <span className="font-semibold text-text-primary">{supplier.opening_balance?.toLocaleString() || "0"}</span>
-                    </div>
-                  </div>
+                  <p className="font-bold text-success">{Number(sale.total_amount).toLocaleString()} ر.س</p>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
+              ))
+            )}
+          </div>
+        </div>
+        <div className="bg-card p-6 rounded-2xl shadow-soft border border-border">
+          <h3 className="font-bold text-text-primary mb-4">صحة النظام</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-success/5 rounded-xl border border-success/10"><span className="text-sm font-medium text-text-primary">حالة قاعدة البيانات</span><span className="text-success text-sm font-semibold">تعمل</span></div>
+            <div className="flex items-center justify-between p-3 bg-info/5 rounded-xl border border-info/10"><span className="text-sm font-medium text-text-primary">اتصال Realtime</span><span className="text-info text-sm font-semibold">نشط</span></div>
+            <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border"><span className="text-sm font-medium text-text-primary">إجمالي السيولة المتاحة</span><span className="font-bold text-primary-blue">{((stats.totalCash || 0) + (stats.collectorBalances || 0)).toLocaleString()} ر.س</span></div>
+          </div>
+        </div>
       </div>
-
-      {/* استخدام handleClose لتحديث الجدول فوراً بعد الإغلاق */}
-      <SupplierForm isOpen={isFormOpen} onClose={handleClose} supplier={editingSupplier} />
     </div>
   );
 }
