@@ -26,7 +26,11 @@ export async function upsertCustomer(formData: CustomerFormData) {
     .eq("id", session.user.id)
     .single();
 
-  if (!["Administrator", "Accountant"].includes(profile?.roles?.[0]?.name)) {
+  // تعديل معالجة نوع البيانات (Array أو Object)
+  const roleData: any = profile?.roles;
+  const userRole = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name;
+
+  if (!["Administrator", "Accountant"].includes(userRole)) {
     return { error: "ليس لديك صلاحية لتنفيذ هذا الإجراء" };
   }
 
@@ -70,7 +74,11 @@ export async function softDeleteCustomer(id: string) {
     .eq("id", session.user.id)
     .single();
 
-  if (!["Administrator", "Accountant"].includes(profile?.roles?.[0]?.name)) {
+  // تعديل معالجة نوع البيانات (Array أو Object)
+  const roleData: any = profile?.roles;
+  const userRole = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name;
+
+  if (!["Administrator", "Accountant"].includes(userRole)) {
     return { error: "ليس لديك صلاحية لحذف العميل" };
   }
 
