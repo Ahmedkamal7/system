@@ -49,6 +49,7 @@ export default function DashboardPage() {
       .from("inventory_levels")
       .select("quantity, products ( name, purchase_price, min_stock )");
     
+    // تعديل هنا: استخدام [0]?. للوصول لبيانات المنتج داخل المصفوفة
     const inventoryValue = inventory?.reduce((s, item) => s + (Number(item.quantity) * Number(item.products?.[0]?.purchase_price || 0)), 0) || 0;
     const lowStockItems = inventory?.filter(item => Number(item.quantity) <= Number(item.products?.[0]?.min_stock)) || [];
 
@@ -151,7 +152,8 @@ export default function DashboardPage() {
                       <ShoppingBag className="w-5 h-5 text-primary-blue" />
                     </div>
                     <div>
-                      <p className="font-semibold text-text-primary text-sm">{sale.customers?.name || "عميل نقدي"}</p>
+                      {/* تعديل هنا: استخدام [0]?. للوصول لاسم العميل */}
+                      <p className="font-semibold text-text-primary text-sm">{sale.customers?.[0]?.name || "عميل نقدي"}</p>
                       <p className="text-xs text-text-secondary">{new Date(sale.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
