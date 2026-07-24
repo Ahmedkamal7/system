@@ -8,13 +8,15 @@ import InventoryModals from "./InventoryModals";
 export default function InventoryPage() {
   const supabase = createClient();
   const [inventory, setInventory] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState("");
   const [loading, setLoading] = useState(true);
   const [modalType, setModalType] = useState<"transfer" | "adjust" | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchInventory = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("inventory_levels")
       .select(`
         quantity,
@@ -23,11 +25,26 @@ export default function InventoryPage() {
       `)
       .gt("quantity", 0);
 
+    if (selectedWarehouse) {
+      query = query.eq("warehouse_id", selectedWarehouse);
+    }
+
+    const { data } = await query;
     if (data) setInventory(data);
     setLoading(false);
   };
 
-  useEffect(() => { fetchInventory(); }, []);
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      const { data } = await supabase.from("warehouses").select("id, name").is("deleted_at", null);
+      if (data) setWarehouses(data);
+    };
+    fetchWarehouses();
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchInventory();
+  }, [selectedWarehouse]); // إعادة جلب البيانات عند تغيير المخزن المختار
 
   const openModal = (type: "transfer" | "adjust") => {
     setModalType(type);
@@ -39,6 +56,8 @@ export default function InventoryPage() {
     fetchInventory();
   };
 
+  const inputClass = "w-full md:w-64 px-3 py-2.5 bg-card border border-border rounded-xl focus:ring-2 focus:ring-primary-blue focus:border-transparent outline-none transition-all text-sm";
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -46,7 +65,16 @@ export default function InventoryPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary">المخزون</h1>
           <p className="text-text-secondary mt-1">الأرصدة الحالية، التحويلات، والتسويات</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <select 
+            value={selectedWarehouse} 
+            onChange={(e) => setSelectedWarehouse(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">كل المخازن</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+
           <button onClick={() => openModal("transfer")} className="flex items-center gap-2 bg-primary-green/10 text-primary-green px-4 py-2.5 rounded-xl hover:bg-primary-green/20 transition-colors font-medium">
             <ArrowRightLeft className="w-5 h-5" />
             <span className="hidden md:inline">تحويل بين المخازن</span>
@@ -64,7 +92,7 @@ export default function InventoryPage() {
         ) : inventory.length === 0 ? (
           <div className="p-8 text-center text-text-secondary flex flex-col items-center gap-2">
             <Warehouse className="w-12 h-12 text-border" />
-            لا توجد أرصدة متاحة حالياً. قم بإضافة فواتير شراء أو تسويات.
+            لا توجد أرصدة متاحة في هذا المخزون حالياً.
           </div>
         ) : (
           <div className="overflow-x-auto">
