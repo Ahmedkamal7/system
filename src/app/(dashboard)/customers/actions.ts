@@ -20,20 +20,6 @@ export async function upsertCustomer(formData: CustomerFormData) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("roles(name)")
-    .eq("id", session.user.id)
-    .single();
-
-  // تعديل معالجة نوع البيانات (Array أو Object)
-  const roleData: any = profile?.roles;
-  const userRole = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name;
-
-  if (!["Administrator", "Accountant"].includes(userRole)) {
-    return { error: "ليس لديك صلاحية لتنفيذ هذا الإجراء" };
-  }
-
   const customerData = {
     name: formData.name,
     phone: formData.phone,
@@ -67,20 +53,6 @@ export async function softDeleteCustomer(id: string) {
   
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("roles(name)")
-    .eq("id", session.user.id)
-    .single();
-
-  // تعديل معالجة نوع البيانات (Array أو Object)
-  const roleData: any = profile?.roles;
-  const userRole = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name;
-
-  if (!["Administrator", "Accountant"].includes(userRole)) {
-    return { error: "ليس لديك صلاحية لحذف العميل" };
-  }
 
   const { error } = await supabase
     .from("customers")
