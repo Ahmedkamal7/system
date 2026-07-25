@@ -12,6 +12,7 @@ export default function InventoryModals({ type, isOpen, onClose }: { type: "tran
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [availableStock, setAvailableStock] = useState<number | null>(null); // لتخزين الرصيد المتاح
   
   const [formData, setFormData] = useState<any>({
     product_id: "",
@@ -27,6 +28,9 @@ export default function InventoryModals({ type, isOpen, onClose }: { type: "tran
     if (isOpen) {
       setError(null);
       setLoading(false);
+      setAvailableStock(null);
+      setFormData({ product_id: "", from_warehouse_id: "", to_warehouse_id: "", warehouse_id: "", quantity: 0, quantity_change: 0, notes: "" });
+      
       const fetchData = async () => {
         const [{ data: prods }, { data: whs }] = await Promise.all([
           supabase.from("products").select("id, name").is("deleted_at", null),
@@ -39,10 +43,35 @@ export default function InventoryModals({ type, isOpen, onClose }: { type: "tran
     }
   }, [isOpen, supabase]);
 
+  // جلب الرصيد المتاح عند اختيار المنتج والمخزن المصدر في حالة التحويل
+  useEffect(() => {
+    if (type === "transfer" && formData.product_id && formData.from_warehouse_id) {
+      const fetchStock = async () => {
+        const { data } = await supabase
+          .from("inventory_levels")
+          .select("quantity")
+          .eq("product_id", formData.product_id)
+          .eq("warehouse_id", formData.from_warehouse_id)
+          .single();
+        setAvailableStock(data?.quantity || 0);
+      };
+      fetchStock();
+    } else {
+      setAvailableStock(null);
+    }
+  }, [formData.product_id, formData.from_warehouse_id, type, supabase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // فحص أمني إضافي في الواجهة قبل الإرسال
+    if (type === "transfer" && availableStock !== null && Number(formData.quantity) > availableStock) {
+      setError(`الكمية المطلوبة تتجاوز الرصيد المتاح (${availableStock})`);
+      setLoading(false);
+      return;
+    }
 
     let result;
     if (type === "transfer") {
@@ -106,10 +135,17 @@ export default function InventoryModals({ type, isOpen, onClose }: { type: "tran
         )}
 
         <div>
-          <label className={labelClass}>{type === "transfer" ? "الكمية المحولة" : "الكمية (سالب للخصم، موجب للإضافة)"}</label>
+          <label className={labelClass}>
+            {type === "transfer" ? "الكمية المحولة" : "الكمية (سالب للخصم، موجب للإضافة)"}
+            {type === "transfer" && availableStock !== null && (
+              <span className="text-primary-blue mr-2">(المتاح: {availableStock})</span>
+            )}
+          </label>
           <input 
             type="number" 
             required 
+            min="1"
+            max={type === "transfer" && availableStock !== null ? availableStock : undefined}
             value={type === "transfer" ? formData.quantity : formData.quantity_change}
             onChange={(e) => setFormData({...formData, [type === "transfer" ? "quantity" : "quantity_change"]: e.target.value})} 
             className={inputClass} 
