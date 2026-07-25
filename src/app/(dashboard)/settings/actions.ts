@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient as createBrowserClient } from "@supabase/supabase-js"; // لاستخدام مفتاح service_role
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -54,7 +55,6 @@ export async function toggleUserStatus(profileId: string, isActive: boolean) {
   return { success: true };
 }
 
-// دالة جديدة: تعديل اسم المستخدم
 export async function updateUsername(profileId: string, username: string) {
   const { error } = await checkAdmin();
   if (error) return { error };
@@ -70,20 +70,24 @@ export async function updateUsername(profileId: string, username: string) {
   return { success: true };
 }
 
-// دالة جديدة: إضافة مستخدم جديد
 export async function createUser(formData: {
   email: string;
   password: string;
   username: string;
   role_id: string;
 }) {
-  const { error, session } = await checkAdmin();
+  const { error } = await checkAdmin();
   if (error) return { error };
 
-  const supabase = createClient();
-  
+  // إنشاء عميل مخصص باستخدام مفتاح service_role السري
+  const supabaseAdmin = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
   // 1. إنشاء حساب المصادقة (Auth)
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: formData.email,
     password: formData.password,
     email_confirm: true
@@ -92,7 +96,7 @@ export async function createUser(formData: {
   if (authError) return { error: "فشل إنشاء الحساب: " + authError.message };
 
   // 2. إنشاء الملف الشخصي (Profile)
-  const { error: profileError } = await supabase
+  const { error: profileError } = await supabaseAdmin
     .from("profiles")
     .insert({
       id: authData.user.id,
@@ -101,7 +105,7 @@ export async function createUser(formData: {
       is_active: true
     });
 
-  if (profileError) return { error: "تم إنشاء الحساب لكن فشل إضافة الملف الشخصي" };
+  if (profileError) return { error: "تم إنشاء الحساب لكن فشل إضافة الملف الشخصي: " + profileError.message };
 
   revalidatePath("/settings");
   return { success: true };
