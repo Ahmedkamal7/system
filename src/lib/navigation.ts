@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Truck, Package, ShoppingCart, FileText, Send, Wallet, Banknote, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Package, ShoppingCart, FileText, Send, Wallet, Banknote, BarChart3, Settings, History } from "lucide-react";
 
 export interface NavItem {
   title: string;
@@ -15,9 +15,10 @@ export const navItems: NavItem[] = [
   { title: "المخزون", href: "/inventory", icon: Package, roles: ["Administrator", "Warehouse Keeper"] },
   { title: "المشتريات", href: "/purchasing", icon: ShoppingCart, roles: ["Administrator", "Warehouse Keeper"] },
   { title: "المبيعات", href: "/sales", icon: FileText, roles: ["Administrator", "Accountant"] },
-  { title: "الموزعون", href: "/distributors", icon: Send, roles: ["Administrator", "Distributor"] },
+  { title: "الموزعون", href: "/distributors", icon: Send, roles: ["Administrator", "Distributor", "Warehouse Keeper"] },
   { title: "التحصيلات", href: "/collectors", icon: Wallet, roles: ["Administrator", "Accountant", "Collector"] },
   { title: "صندوق النقدية", href: "/cashbox", icon: Banknote, roles: ["Administrator", "Accountant"] },
   { title: "التقارير", href: "/reports", icon: BarChart3, roles: ["Administrator", "Accountant"] },
+  { title: "سجل النشاط", href: "/audit-logs", icon: History, roles: ["Administrator"] },
   { title: "الإعدادات", href: "/settings", icon: Settings, roles: ["Administrator"] },
 ];
