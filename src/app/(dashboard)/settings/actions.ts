@@ -54,6 +54,59 @@ export async function toggleUserStatus(profileId: string, isActive: boolean) {
   return { success: true };
 }
 
+// دالة جديدة: تعديل اسم المستخدم
+export async function updateUsername(profileId: string, username: string) {
+  const { error } = await checkAdmin();
+  if (error) return { error };
+
+  const supabase = createClient();
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ username })
+    .eq("id", profileId);
+
+  if (updateError) return { error: "فشل تحديث الاسم" };
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+// دالة جديدة: إضافة مستخدم جديد
+export async function createUser(formData: {
+  email: string;
+  password: string;
+  username: string;
+  role_id: string;
+}) {
+  const { error, session } = await checkAdmin();
+  if (error) return { error };
+
+  const supabase = createClient();
+  
+  // 1. إنشاء حساب المصادقة (Auth)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: formData.email,
+    password: formData.password,
+    email_confirm: true
+  });
+
+  if (authError) return { error: "فشل إنشاء الحساب: " + authError.message };
+
+  // 2. إنشاء الملف الشخصي (Profile)
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .insert({
+      id: authData.user.id,
+      username: formData.username,
+      role_id: formData.role_id,
+      is_active: true
+    });
+
+  if (profileError) return { error: "تم إنشاء الحساب لكن فشل إضافة الملف الشخصي" };
+
+  revalidatePath("/settings");
+  return { success: true };
+}
+
 export async function saveSettings(formData: Record<string, string>) {
   const { error } = await checkAdmin();
   if (error) return { error };
