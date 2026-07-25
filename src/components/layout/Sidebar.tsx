@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/lib/navigation";
 import { X } from "lucide-react";
+import { useSettings } from "@/lib/context/SettingsContext";
 
 interface SidebarProps {
   userRole: string | null;
@@ -13,8 +14,8 @@ interface SidebarProps {
 
 export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { companyName } = useSettings();
   
-  // تعديل هنا: إجبار القائمة على الظهور إذا لم يقرأ النظام الدور
   const filteredNavItems = navItems.filter(item => 
     !userRole || userRole === "undefined" ? true : item.roles.includes(userRole)
   );
@@ -42,8 +43,8 @@ export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
               </svg>
             </div>
             <div>
-              <h1 className="font-bold text-text-primary text-lg leading-tight">Smart ERP</h1>
-              <p className="text-xs text-text-secondary">Distribution System</p>
+              <h1 className="font-bold text-text-primary text-lg leading-tight">{companyName}</h1>
+              <p className="text-xs text-text-secondary">ERP System</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden text-text-secondary hover:text-text-primary transition-colors">
