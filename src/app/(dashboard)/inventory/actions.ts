@@ -15,6 +15,21 @@ export async function transferStock(formData: {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
+  // 1. التحقق من الرصيد المتاح في المخزن المصدر
+  const { data: sourceLevel } = await supabase
+    .from("inventory_levels")
+    .select("quantity")
+    .eq("product_id", formData.product_id)
+    .eq("warehouse_id", formData.from_warehouse_id)
+    .single();
+
+  const availableQty = sourceLevel?.quantity || 0;
+
+  // 2. إذا كانت الكمية المطلوبة أكبر من المتاح، ارفض العملية
+  if (Number(formData.quantity) > availableQty) {
+    return { error: `الكمية المطلوبة (${formData.quantity}) تتجاوز الرصيد المتاح (${availableQty})` };
+  }
+
   // خصم من المخزن المصدر
   const { error: outError } = await supabase.from("stock_movements").insert({
     product_id: formData.product_id,
