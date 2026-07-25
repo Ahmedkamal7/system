@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import PrintButton from "./PrintButton";
 
 export default async function PrintInvoice({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -10,7 +11,6 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
     .eq("id", params.id)
     .single();
 
-  // إذا لم يتم العثور على الفاتورة أو حدث خطأ، اعرض صفحة 404
   if (error || !sale) {
     notFound();
   }
@@ -20,7 +20,6 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
     .select(`*, products ( name )`)
     .eq("sale_id", params.id);
 
-  // معالجة اسم العميل والمخزن بشكل آمن
   const customerName = Array.isArray(sale.customers) ? sale.customers[0]?.name : sale.customers?.name || "عميل نقدي";
   const warehouseName = Array.isArray(sale.warehouses) ? sale.warehouses[0]?.name : sale.warehouses?.name || "—";
 
@@ -63,7 +62,6 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
           </thead>
           <tbody>
             {items?.map((item) => {
-              // معالجة اسم المنتج بشكل آمن
               const productName = Array.isArray(item.products) ? item.products[0]?.name : item.products?.name || "منتج";
               return (
                 <tr key={item.id} className="border-b border-border">
@@ -100,9 +98,7 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
       </div>
 
       <div className="text-center mt-8 no-print">
-        <button onClick={() => window.print()} className="bg-primary-blue text-white px-8 py-2 rounded-xl hover:bg-blue-600 transition-colors">
-          طباعة
-        </button>
+        <PrintButton />
       </div>
     </div>
   );
