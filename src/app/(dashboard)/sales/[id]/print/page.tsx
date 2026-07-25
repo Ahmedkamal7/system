@@ -4,18 +4,25 @@ import { notFound } from "next/navigation";
 export default async function PrintInvoice({ params }: { params: { id: string } }) {
   const supabase = createClient();
   
-  const { data: sale } = await supabase
+  const { data: sale, error } = await supabase
     .from("sales")
     .select(`*, customers ( name ), warehouses ( name )`)
     .eq("id", params.id)
     .single();
 
-  if (!sale) notFound();
+  // إذا لم يتم العثور على الفاتورة أو حدث خطأ، اعرض صفحة 404
+  if (error || !sale) {
+    notFound();
+  }
 
   const { data: items } = await supabase
     .from("sale_items")
     .select(`*, products ( name )`)
     .eq("sale_id", params.id);
+
+  // معالجة اسم العميل والمخزن بشكل آمن
+  const customerName = Array.isArray(sale.customers) ? sale.customers[0]?.name : sale.customers?.name || "عميل نقدي";
+  const warehouseName = Array.isArray(sale.warehouses) ? sale.warehouses[0]?.name : sale.warehouses?.name || "—";
 
   const qrData = encodeURIComponent(`Invoice:${sale.invoice_number || sale.id}|Total:${sale.total_amount}|Date:${sale.created_at}`);
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrData}`;
@@ -37,11 +44,11 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
         <div className="grid grid-cols-2 gap-4 mb-8 p-4 bg-background rounded-xl">
           <div>
             <p className="text-xs text-text-secondary">العميل</p>
-            <p className="font-semibold text-text-primary">{sale.customers?.name || "عميل نقدي"}</p>
+            <p className="font-semibold text-text-primary">{customerName}</p>
           </div>
           <div>
             <p className="text-xs text-text-secondary">المخزن</p>
-            <p className="font-semibold text-text-primary">{sale.warehouses?.name || "—"}</p>
+            <p className="font-semibold text-text-primary">{warehouseName}</p>
           </div>
         </div>
 
@@ -55,14 +62,18 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
             </tr>
           </thead>
           <tbody>
-            {items?.map((item) => (
-              <tr key={item.id} className="border-b border-border">
-                <td className="py-3 text-sm text-text-primary">{item.products?.name}</td>
-                <td className="py-3 text-center text-sm text-text-primary">{item.quantity}</td>
-                <td className="py-3 text-center text-sm text-text-primary">{item.unit_price.toLocaleString()}</td>
-                <td className="py-3 text-left text-sm font-semibold text-text-primary">{item.total_price.toLocaleString()}</td>
-              </tr>
-            ))}
+            {items?.map((item) => {
+              // معالجة اسم المنتج بشكل آمن
+              const productName = Array.isArray(item.products) ? item.products[0]?.name : item.products?.name || "منتج";
+              return (
+                <tr key={item.id} className="border-b border-border">
+                  <td className="py-3 text-sm text-text-primary">{productName}</td>
+                  <td className="py-3 text-center text-sm text-text-primary">{item.quantity}</td>
+                  <td className="py-3 text-center text-sm text-text-primary">{Number(item.unit_price).toLocaleString()}</td>
+                  <td className="py-3 text-left text-sm font-semibold text-text-primary">{Number(item.total_price).toLocaleString()}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -70,19 +81,19 @@ export default async function PrintInvoice({ params }: { params: { id: string } 
           <div className="w-1/2 space-y-2">
             <div className="flex justify-between text-sm text-text-secondary">
               <span>المجموع الفرعي:</span>
-              <span>{sale.sub_total.toLocaleString()} ر.س</span>
+              <span>{Number(sale.sub_total).toLocaleString()} ر.س</span>
             </div>
             <div className="flex justify-between text-sm text-text-secondary">
               <span>الخصم:</span>
-              <span>- {sale.discount_amount.toLocaleString()} ر.س</span>
+              <span>- {Number(sale.discount_amount).toLocaleString()} ر.س</span>
             </div>
             <div className="flex justify-between text-sm text-text-secondary">
               <span>الضريبة:</span>
-              <span>+ {sale.tax_amount.toLocaleString()} ر.س</span>
+              <span>+ {Number(sale.tax_amount).toLocaleString()} ر.س</span>
             </div>
             <div className="flex justify-between text-lg font-bold text-text-primary border-t-2 border-border pt-2 mt-2">
               <span>الإجمالي:</span>
-              <span>{sale.total_amount.toLocaleString()} ر.س</span>
+              <span>{Number(sale.total_amount).toLocaleString()} ر.س</span>
             </div>
           </div>
         </div>
